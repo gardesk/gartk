@@ -437,6 +437,28 @@ impl Window {
         Ok(())
     }
 
+    /// Grab keyboard input with retries (useful when spawned from a WM keybinding)
+    pub fn grab_keyboard_with_retry(&self, max_attempts: u32, delay_ms: u64) -> Result<()> {
+        for attempt in 0..max_attempts {
+            let reply = self.conn.inner().grab_keyboard(
+                false,
+                self.window,
+                x11rb::CURRENT_TIME,
+                xproto::GrabMode::ASYNC,
+                xproto::GrabMode::ASYNC,
+            )?.reply()?;
+
+            if reply.status == xproto::GrabStatus::SUCCESS {
+                return Ok(());
+            }
+
+            if attempt < max_attempts - 1 {
+                std::thread::sleep(std::time::Duration::from_millis(delay_ms));
+            }
+        }
+        Err(X11Error::KeyboardGrabFailed)
+    }
+
     /// Ungrab keyboard
     pub fn ungrab_keyboard(&self) -> Result<()> {
         self.conn.inner().ungrab_keyboard(x11rb::CURRENT_TIME)?;
