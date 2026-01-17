@@ -1,0 +1,11 @@
+[package]
+name = "gartk-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "Core types for gartk - Color, Theme, Event, Rect"
+
+[dependencies]
+thiserror.workspace = true
+serde.workspace = true
