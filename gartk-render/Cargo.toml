@@ -1,0 +1,17 @@
+[package]
+name = "gartk-render"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "Cairo/Pango rendering for gartk - surfaces, text, shapes"
+
+[dependencies]
+gartk-core.workspace = true
+gartk-x11.workspace = true
+x11rb.workspace = true
+cairo-rs.workspace = true
+pango.workspace = true
+pangocairo.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
