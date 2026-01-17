@@ -1,0 +1,33 @@
+[workspace]
+resolver = "2"
+members = ["gartk-core", "gartk-x11", "gartk-render"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+authors = ["mfwolffe"]
+
+[workspace.dependencies]
+# Internal crates
+gartk-core = { path = "gartk-core" }
+gartk-x11 = { path = "gartk-x11" }
+gartk-render = { path = "gartk-render" }
+
+# X11
+x11rb = { version = "0.13", features = ["randr", "cursor", "resource_manager"] }
+
+# Rendering
+cairo-rs = { version = "0.20", features = ["xcb"] }
+pango = "0.20"
+pangocairo = "0.20"
+
+# Error handling
+thiserror = "2.0"
+anyhow = "1.0"
+
+# Logging
+tracing = "0.1"
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
