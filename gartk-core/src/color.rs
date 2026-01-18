@@ -178,6 +178,85 @@ impl Color {
         )
     }
 
+    /// Convert RGB to HSV color space.
+    /// Returns (hue: 0-360, saturation: 0-1, value: 0-1)
+    pub fn to_hsv(&self) -> (f64, f64, f64) {
+        let max = self.r.max(self.g).max(self.b);
+        let min = self.r.min(self.g).min(self.b);
+        let delta = max - min;
+
+        let h = if delta == 0.0 {
+            0.0
+        } else if max == self.r {
+            60.0 * (((self.g - self.b) / delta) % 6.0)
+        } else if max == self.g {
+            60.0 * (((self.b - self.r) / delta) + 2.0)
+        } else {
+            60.0 * (((self.r - self.g) / delta) + 4.0)
+        };
+        let h = if h < 0.0 { h + 360.0 } else { h };
+        let s = if max == 0.0 { 0.0 } else { delta / max };
+
+        (h, s, max)
+    }
+
+    /// Create color from HSV values.
+    /// hue: 0-360, saturation: 0-1, value: 0-1
+    pub fn from_hsv(h: f64, s: f64, v: f64) -> Self {
+        Self::from_hsva(h, s, v, 1.0)
+    }
+
+    /// Create color from HSVA values.
+    /// hue: 0-360, saturation: 0-1, value: 0-1, alpha: 0-1
+    pub fn from_hsva(h: f64, s: f64, v: f64, a: f64) -> Self {
+        let c = v * s;
+        let h_prime = h / 60.0;
+        let x = c * (1.0 - ((h_prime % 2.0) - 1.0).abs());
+        let m = v - c;
+
+        let (r, g, b) = match h_prime as u32 % 6 {
+            0 => (c, x, 0.0),
+            1 => (x, c, 0.0),
+            2 => (0.0, c, x),
+            3 => (0.0, x, c),
+            4 => (x, 0.0, c),
+            _ => (c, 0.0, x),
+        };
+
+        Self::new(r + m, g + m, b + m, a)
+    }
+
+    /// Return color with modified hue (HSV)
+    pub fn with_hue(self, h: f64) -> Self {
+        let (_, s, v) = self.to_hsv();
+        Self::from_hsva(h, s, v, self.a)
+    }
+
+    /// Return color with modified saturation (HSV)
+    pub fn with_saturation(self, s: f64) -> Self {
+        let (h, _, v) = self.to_hsv();
+        Self::from_hsva(h, s, v, self.a)
+    }
+
+    /// Return color with modified value/brightness (HSV)
+    pub fn with_value(self, v: f64) -> Self {
+        let (h, s, _) = self.to_hsv();
+        Self::from_hsva(h, s, v, self.a)
+    }
+
+    /// Convert to hex string (e.g., "#ff6600" or "#ff660080" with alpha)
+    pub fn to_hex(&self) -> String {
+        let r = (self.r * 255.0).round() as u8;
+        let g = (self.g * 255.0).round() as u8;
+        let b = (self.b * 255.0).round() as u8;
+        if self.a >= 1.0 {
+            format!("#{:02x}{:02x}{:02x}", r, g, b)
+        } else {
+            let a = (self.a * 255.0).round() as u8;
+            format!("#{:02x}{:02x}{:02x}{:02x}", r, g, b, a)
+        }
+    }
+
     /// Convert to ARGB u32 for X11 (alpha in high byte)
     pub fn to_argb_u32(self) -> u32 {
         let a = (self.a * 255.0) as u32;
