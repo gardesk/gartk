@@ -85,6 +85,94 @@ impl Surface {
     pub fn stride(&self) -> i32 {
         self.surface.stride()
     }
+
+    /// Create a surface from RGBA pixel data
+    pub fn from_rgba(data: &[u8], width: u32, height: u32) -> Result<Self> {
+        let mut surface = Self::new(width, height)?;
+        let stride = surface.stride() as usize;
+        let w = width as usize;
+
+        // Get the surface data for writing
+        {
+            let mut surface_data = surface
+                .surface
+                .data()
+                .map_err(|_| RenderError::SurfaceCreationFailed)?;
+
+            // Convert RGBA to Cairo's ARGB format (premultiplied alpha)
+            for y in 0..height as usize {
+                for x in 0..w {
+                    let src_idx = (y * w + x) * 4;
+                    let dst_idx = y * stride + x * 4;
+
+                    if src_idx + 3 < data.len() && dst_idx + 3 < surface_data.len() {
+                        let r = data[src_idx];
+                        let g = data[src_idx + 1];
+                        let b = data[src_idx + 2];
+                        let a = data[src_idx + 3];
+
+                        // Cairo uses BGRA on little-endian (which is most systems)
+                        // Pre-multiply alpha
+                        let alpha = a as f32 / 255.0;
+                        surface_data[dst_idx] = (b as f32 * alpha) as u8;     // B
+                        surface_data[dst_idx + 1] = (g as f32 * alpha) as u8; // G
+                        surface_data[dst_idx + 2] = (r as f32 * alpha) as u8; // R
+                        surface_data[dst_idx + 3] = a;                        // A
+                    }
+                }
+            }
+        }
+
+        surface.surface.mark_dirty();
+        Ok(surface)
+    }
+
+    /// Export surface as RGBA pixel data
+    pub fn to_rgba(&mut self) -> Result<Vec<u8>> {
+        self.surface.flush();
+
+        let stride = self.stride() as usize;
+        let width = self.width as usize;
+        let height = self.height as usize;
+
+        let data = self
+            .surface
+            .data()
+            .map_err(|_| RenderError::SurfaceCreationFailed)?;
+
+        let mut rgba = vec![0u8; width * height * 4];
+
+        // Convert Cairo's BGRA (premultiplied) to RGBA
+        for y in 0..height {
+            for x in 0..width {
+                let src_idx = y * stride + x * 4;
+                let dst_idx = (y * width + x) * 4;
+
+                if src_idx + 3 < data.len() {
+                    let b = data[src_idx];
+                    let g = data[src_idx + 1];
+                    let r = data[src_idx + 2];
+                    let a = data[src_idx + 3];
+
+                    // Un-premultiply alpha
+                    if a > 0 {
+                        let alpha = a as f32 / 255.0;
+                        rgba[dst_idx] = (r as f32 / alpha).min(255.0) as u8;
+                        rgba[dst_idx + 1] = (g as f32 / alpha).min(255.0) as u8;
+                        rgba[dst_idx + 2] = (b as f32 / alpha).min(255.0) as u8;
+                        rgba[dst_idx + 3] = a;
+                    } else {
+                        rgba[dst_idx] = 0;
+                        rgba[dst_idx + 1] = 0;
+                        rgba[dst_idx + 2] = 0;
+                        rgba[dst_idx + 3] = 0;
+                    }
+                }
+            }
+        }
+
+        Ok(rgba)
+    }
 }
 
 /// Double-buffered surface for flicker-free rendering
