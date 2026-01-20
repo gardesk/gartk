@@ -154,6 +154,11 @@ impl Connection {
         Ok(colormap)
     }
 
+    /// Query pointer position relative to root window
+    pub fn query_pointer(&self) -> Result<(i16, i16)> {
+        let reply = self.conn.query_pointer(self.root())?.reply()?;
+        Ok((reply.root_x, reply.root_y))
+    }
 }
 
 impl Clone for Connection {

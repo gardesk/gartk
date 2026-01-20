@@ -178,3 +178,9 @@ pub fn monitor_at_point(conn: &Connection, x: i32, y: i32) -> Result<Monitor> {
         .or_else(|| monitors.into_iter().next())
         .ok_or(X11Error::NoScreens)
 }
+
+/// Get the monitor containing the mouse pointer
+pub fn monitor_at_pointer(conn: &Connection) -> Result<Monitor> {
+    let (x, y) = conn.query_pointer()?;
+    monitor_at_point(conn, x as i32, y as i32)
+}
