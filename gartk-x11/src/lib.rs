@@ -6,8 +6,10 @@
 //! - [`Monitor`]: RandR monitor detection
 //! - [`EventLoop`]: Blocking event loop
 //! - [`CursorManager`]: Cursor creation and management
+//! - [`ClipboardManager`]: X11 clipboard for file operations
 
 mod atoms;
+mod clipboard;
 mod connection;
 mod cursor;
 mod error;
@@ -17,6 +19,7 @@ mod monitor;
 mod window;
 
 pub use atoms::Atoms;
+pub use clipboard::{ClipboardContent, ClipboardManager};
 pub use connection::Connection;
 pub use cursor::{CursorManager, CursorShape};
 pub use error::{Result, X11Error};

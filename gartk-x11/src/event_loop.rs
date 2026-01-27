@@ -3,7 +3,7 @@ use crate::connection::Connection;
 use crate::error::Result;
 use crate::keyboard::{key_event_from_x11, modifiers_from_x11};
 use crate::window::Window;
-use gartk_core::{InputEvent, MouseButton, MouseEvent, Point, ScrollEvent};
+use gartk_core::{InputEvent, MouseButton, MouseEvent, Point, ScrollEvent, SelectionRequestEvent};
 use std::time::{Duration, Instant};
 use x11rb::protocol::xproto::{self, ButtonPressEvent};
 use x11rb::protocol::Event;
@@ -216,6 +216,21 @@ impl EventLoop {
                     }
                 }
                 None
+            }
+
+            // Selection events for clipboard support
+            Event::SelectionRequest(e) => {
+                Some(InputEvent::SelectionRequest(SelectionRequestEvent {
+                    requestor: e.requestor,
+                    selection: e.selection,
+                    target: e.target,
+                    property: e.property,
+                    time: e.time,
+                }))
+            }
+
+            Event::SelectionClear(e) if e.owner == self.window_id => {
+                Some(InputEvent::SelectionClear)
             }
 
             _ => None,

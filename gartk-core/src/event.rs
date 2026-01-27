@@ -135,6 +135,21 @@ pub struct ScrollEvent {
     pub modifiers: Modifiers,
 }
 
+/// Selection request event (X11 clipboard)
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SelectionRequestEvent {
+    /// Window requesting the selection
+    pub requestor: u32,
+    /// Selection atom (CLIPBOARD, PRIMARY)
+    pub selection: u32,
+    /// Target format being requested
+    pub target: u32,
+    /// Property to store the data in
+    pub property: u32,
+    /// Timestamp of the request
+    pub time: u32,
+}
+
 /// All input event types
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum InputEvent {
@@ -162,6 +177,10 @@ pub enum InputEvent {
     FocusOut,
     /// Window close requested
     CloseRequested,
+    /// Selection request from another application (X11 clipboard)
+    SelectionRequest(SelectionRequestEvent),
+    /// We lost clipboard ownership
+    SelectionClear,
 }
 
 impl InputEvent {

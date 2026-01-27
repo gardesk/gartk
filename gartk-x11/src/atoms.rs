@@ -36,6 +36,15 @@ pub struct Atoms {
     pub targets: Atom,
     pub utf8_string: Atom,
     pub text: Atom,
+    pub text_uri_list: Atom,
+    pub gnome_copied_files: Atom,
+    pub text_plain: Atom,
+    pub text_plain_utf8: Atom,
+    pub multiple: Atom,
+    pub incr: Atom,
+    pub kde_cut_selection: Atom,
+    pub uri_list: Atom,
+    pub timestamp: Atom,
 
     // Misc
     pub cardinal: Atom,
@@ -80,6 +89,15 @@ impl Atoms {
             targets: conn.intern_atom("TARGETS", false)?,
             utf8_string: conn.intern_atom("UTF8_STRING", false)?,
             text: conn.intern_atom("TEXT", false)?,
+            text_uri_list: conn.intern_atom("text/uri-list", false)?,
+            gnome_copied_files: conn.intern_atom("x-special/gnome-copied-files", false)?,
+            text_plain: conn.intern_atom("text/plain", false)?,
+            text_plain_utf8: conn.intern_atom("text/plain;charset=utf-8", false)?,
+            multiple: conn.intern_atom("MULTIPLE", false)?,
+            incr: conn.intern_atom("INCR", false)?,
+            kde_cut_selection: conn.intern_atom("application/x-kde-cutselection", false)?,
+            uri_list: conn.intern_atom("x-special/URI", false)?,
+            timestamp: conn.intern_atom("TIMESTAMP", false)?,
 
             // Types
             cardinal: conn.intern_atom("CARDINAL", false)?,

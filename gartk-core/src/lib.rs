@@ -12,6 +12,6 @@ mod rect;
 mod theme;
 
 pub use color::{Color, ColorError};
-pub use event::{InputEvent, Key, KeyEvent, Modifiers, MouseButton, MouseEvent, ScrollEvent};
+pub use event::{InputEvent, Key, KeyEvent, Modifiers, MouseButton, MouseEvent, ScrollEvent, SelectionRequestEvent};
 pub use rect::{Edges, Point, Rect, Size};
 pub use theme::{Theme, ThemeBuilder};
