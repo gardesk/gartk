@@ -81,6 +81,19 @@ impl Surface {
         Ok(data.to_vec())
     }
 
+    /// Access raw image data via callback (avoids copy)
+    pub fn with_data<F, T>(&mut self, f: F) -> Result<T>
+    where
+        F: FnOnce(&[u8]) -> T,
+    {
+        self.surface.flush();
+        let data = self
+            .surface
+            .data()
+            .map_err(|_| RenderError::SurfaceCreationFailed)?;
+        Ok(f(&data))
+    }
+
     /// Get the stride (bytes per row)
     pub fn stride(&self) -> i32 {
         self.surface.stride()

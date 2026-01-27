@@ -41,6 +41,11 @@ impl Renderer {
         &self.surface
     }
 
+    /// Get mutable access to the underlying surface
+    pub fn surface_mut(&mut self) -> &mut Surface {
+        &mut self.surface
+    }
+
     /// Get the theme
     pub fn theme(&self) -> &Theme {
         &self.theme
