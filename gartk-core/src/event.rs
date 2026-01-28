@@ -181,6 +181,8 @@ pub enum InputEvent {
     SelectionRequest(SelectionRequestEvent),
     /// We lost clipboard ownership
     SelectionClear,
+    /// Idle tick - sent every frame when no other events
+    Idle,
 }
 
 impl InputEvent {

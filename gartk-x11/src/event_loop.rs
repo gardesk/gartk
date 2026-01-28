@@ -86,8 +86,17 @@ impl EventLoop {
         let mut last_frame = Instant::now();
 
         while self.running {
-            // Process all pending events
+            // Collect all pending events first for coalescing
+            let mut pending_events: Vec<Event> = Vec::new();
             while let Some(event) = self.conn.poll_event()? {
+                pending_events.push(event);
+            }
+
+            // Coalesce motion events - keep only the last one
+            let events = coalesce_motion_events(pending_events, self.window_id);
+
+            // Process coalesced events
+            for event in events {
                 if let Some(input_event) = self.translate_event(event) {
                     let should_continue = handler(self, input_event)?;
                     if !should_continue {
@@ -98,6 +107,13 @@ impl EventLoop {
             }
 
             if !self.running {
+                break;
+            }
+
+            // Send Idle event once per frame for animations and timers
+            let should_continue = handler(self, InputEvent::Idle)?;
+            if !should_continue {
+                self.running = false;
                 break;
             }
 
@@ -244,4 +260,38 @@ fn mouse_event_from_x11(e: &ButtonPressEvent) -> MouseEvent {
         button: Some(MouseButton::from_x11(e.detail)),
         modifiers: modifiers_from_x11(e.state),
     }
+}
+
+/// Coalesce consecutive motion events for the same window, keeping only the last position.
+/// This reduces lag during fast mouse movement by skipping intermediate positions.
+fn coalesce_motion_events(events: Vec<Event>, window_id: xproto::Window) -> Vec<Event> {
+    if events.is_empty() {
+        return events;
+    }
+
+    let mut result: Vec<Event> = Vec::with_capacity(events.len());
+    let mut last_motion: Option<Event> = None;
+
+    for event in events {
+        match &event {
+            Event::MotionNotify(e) if e.event == window_id => {
+                // Replace previous motion event with this one
+                last_motion = Some(event);
+            }
+            _ => {
+                // Flush any pending motion event before non-motion event
+                if let Some(motion) = last_motion.take() {
+                    result.push(motion);
+                }
+                result.push(event);
+            }
+        }
+    }
+
+    // Don't forget the last motion event
+    if let Some(motion) = last_motion {
+        result.push(motion);
+    }
+
+    result
 }
