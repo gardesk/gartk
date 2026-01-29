@@ -354,6 +354,32 @@ impl Window {
         Ok(())
     }
 
+    /// Request window activation via EWMH _NET_ACTIVE_WINDOW.
+    /// This is the proper way to request that a window manager bring a window
+    /// to the foreground and give it focus.
+    pub fn activate(&self) -> Result<()> {
+        let event = xproto::ClientMessageEvent::new(
+            32,
+            self.window,
+            self.atoms.net_active_window,
+            [
+                1, // source indication: 1 = application request
+                x11rb::CURRENT_TIME,
+                0, // currently active window (none)
+                0,
+                0,
+            ],
+        );
+
+        self.conn.inner().send_event(
+            false,
+            self.conn.root(),
+            EventMask::SUBSTRUCTURE_NOTIFY | EventMask::SUBSTRUCTURE_REDIRECT,
+            event,
+        )?;
+        Ok(())
+    }
+
     /// Set window title
     pub fn set_title(&self, title: &str) -> Result<()> {
         self.conn.inner().change_property8(
