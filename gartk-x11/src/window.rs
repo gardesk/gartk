@@ -39,6 +39,10 @@ pub struct WindowConfig {
     pub map_on_create: bool,
     /// Whether to request ARGB visual for transparency
     pub transparent: bool,
+    /// Parent window ID for transient-for hint (dialog belongs to parent)
+    pub parent_window: Option<xproto::Window>,
+    /// Whether to set _NET_WM_STATE_MODAL
+    pub modal: bool,
 }
 
 impl Default for WindowConfig {
@@ -54,6 +58,8 @@ impl Default for WindowConfig {
             border_width: 0,
             map_on_create: true,
             transparent: false,
+            parent_window: None,
+            modal: false,
         }
     }
 }
@@ -115,6 +121,18 @@ impl WindowConfig {
 
     pub fn transparent(mut self, value: bool) -> Self {
         self.transparent = value;
+        self
+    }
+
+    /// Set the parent window (for WM_TRANSIENT_FOR hint)
+    pub fn parent_window(mut self, parent: xproto::Window) -> Self {
+        self.parent_window = Some(parent);
+        self
+    }
+
+    /// Set whether window should be modal
+    pub fn modal(mut self, value: bool) -> Self {
+        self.modal = value;
         self
     }
 
@@ -231,12 +249,37 @@ impl Window {
         win.set_type(&atoms, config.window_type)?;
         win.set_protocols(&atoms)?;
 
+        // Set transient-for if parent specified (dialog belongs to parent)
+        if let Some(parent) = config.parent_window {
+            tracing::debug!("Setting WM_TRANSIENT_FOR to parent window {}", parent);
+            win.set_transient_for(parent)?;
+        }
+
+        // Set modal and above states if requested
+        if config.modal {
+            tracing::debug!("Setting _NET_WM_STATE_MODAL and _NET_WM_STATE_ABOVE");
+            win.add_state(atoms.net_wm_state_modal)?;
+            win.add_state(atoms.net_wm_state_above)?;
+        }
+
         // Map window if requested
         if config.map_on_create {
             win.map()?;
         }
 
         conn.flush()?;
+
+        // If we have a parent window, raise and activate to ensure we're on top
+        // Note: We need a brief delay to allow the WM to process the MapRequest
+        // before we send the _NET_ACTIVE_WINDOW request
+        if config.parent_window.is_some() {
+            tracing::debug!("Raising and activating dialog window");
+            // Small delay to let WM process MapRequest
+            std::thread::sleep(std::time::Duration::from_millis(50));
+            win.raise()?;
+            win.activate()?;
+            conn.flush()?;
+        }
 
         Ok(win)
     }
@@ -308,7 +351,7 @@ impl Window {
         Ok(())
     }
 
-    /// Resize the window
+    /// Resize the window (sends X11 ConfigureWindow request)
     pub fn resize(&mut self, width: u32, height: u32) -> Result<()> {
         self.conn.inner().configure_window(
             self.window,
@@ -319,6 +362,13 @@ impl Window {
         self.rect.width = width;
         self.rect.height = height;
         Ok(())
+    }
+
+    /// Update internal rect without sending X11 request.
+    /// Call this when handling ConfigureNotify events.
+    pub fn set_size(&mut self, width: u32, height: u32) {
+        self.rect.width = width;
+        self.rect.height = height;
     }
 
     /// Move and resize the window
@@ -350,6 +400,20 @@ impl Window {
             xproto::InputFocus::POINTER_ROOT,
             self.window,
             x11rb::CURRENT_TIME,
+        )?;
+        Ok(())
+    }
+
+    /// Clear the entire window area.
+    /// This fills the window with the background color (or black if no background set).
+    pub fn clear(&self) -> Result<()> {
+        self.conn.inner().clear_area(
+            false, // don't generate expose events
+            self.window,
+            0,
+            0,
+            self.rect.width as u16,
+            self.rect.height as u16,
         )?;
         Ok(())
     }
@@ -445,6 +509,35 @@ impl Window {
             &[atoms.wm_delete_window, atoms.wm_take_focus],
         )?;
         Ok(())
+    }
+
+    /// Set transient-for hint (dialog belongs to parent window)
+    pub fn set_transient_for(&self, parent: xproto::Window) -> Result<()> {
+        self.conn.inner().change_property32(
+            xproto::PropMode::REPLACE,
+            self.window,
+            self.atoms.wm_transient_for,
+            xproto::AtomEnum::WINDOW,
+            &[parent],
+        )?;
+        Ok(())
+    }
+
+    /// Add a state to _NET_WM_STATE (e.g., modal, above)
+    pub fn add_state(&self, state_atom: xproto::Atom) -> Result<()> {
+        self.conn.inner().change_property32(
+            xproto::PropMode::APPEND,
+            self.window,
+            self.atoms.net_wm_state,
+            xproto::AtomEnum::ATOM,
+            &[state_atom],
+        )?;
+        Ok(())
+    }
+
+    /// Get the atoms
+    pub fn atoms(&self) -> &Atoms {
+        &self.atoms
     }
 
     /// Grab keyboard input

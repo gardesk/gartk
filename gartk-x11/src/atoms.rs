@@ -12,6 +12,7 @@ pub struct Atoms {
     pub wm_name: Atom,
     pub wm_class: Atom,
     pub wm_state: Atom,
+    pub wm_transient_for: Atom,
 
     // EWMH atoms
     pub net_wm_name: Atom,
@@ -26,6 +27,7 @@ pub struct Atoms {
     pub net_wm_state_sticky: Atom,
     pub net_wm_state_fullscreen: Atom,
     pub net_wm_state_focused: Atom,
+    pub net_wm_state_modal: Atom,
     pub net_active_window: Atom,
     pub net_wm_pid: Atom,
     pub net_frame_extents: Atom,
@@ -64,6 +66,7 @@ impl Atoms {
             wm_name: conn.intern_atom("WM_NAME", false)?,
             wm_class: conn.intern_atom("WM_CLASS", false)?,
             wm_state: conn.intern_atom("WM_STATE", false)?,
+            wm_transient_for: conn.intern_atom("WM_TRANSIENT_FOR", false)?,
 
             // EWMH
             net_wm_name: conn.intern_atom("_NET_WM_NAME", false)?,
@@ -79,6 +82,7 @@ impl Atoms {
             net_wm_state_sticky: conn.intern_atom("_NET_WM_STATE_STICKY", false)?,
             net_wm_state_fullscreen: conn.intern_atom("_NET_WM_STATE_FULLSCREEN", false)?,
             net_wm_state_focused: conn.intern_atom("_NET_WM_STATE_FOCUSED", false)?,
+            net_wm_state_modal: conn.intern_atom("_NET_WM_STATE_MODAL", false)?,
             net_active_window: conn.intern_atom("_NET_ACTIVE_WINDOW", false)?,
             net_wm_pid: conn.intern_atom("_NET_WM_PID", false)?,
             net_frame_extents: conn.intern_atom("_NET_FRAME_EXTENTS", false)?,

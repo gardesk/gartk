@@ -1,6 +1,6 @@
 use crate::error::{Result, X11Error};
 use std::sync::Arc;
-use x11rb::connection::Connection as X11Connection;
+use x11rb::connection::{Connection as X11Connection, RequestConnection};
 use x11rb::protocol::xproto::{self, ConnectionExt, Screen};
 use x11rb::rust_connection::RustConnection;
 
@@ -17,6 +17,14 @@ impl Connection {
         let (conn, screen_num) = RustConnection::connect(display)?;
         let conn = Arc::new(conn);
 
+        // Enable BIG-REQUESTS extension for large put_image operations
+        // This queries the server for the extended maximum request size
+        conn.prefetch_maximum_request_bytes();
+
+        // Log the max request size for debugging
+        let max_bytes = conn.maximum_request_bytes();
+        tracing::debug!("X11 maximum request bytes: {} ({:.1} MB)", max_bytes, max_bytes as f64 / 1_000_000.0);
+
         let screen = conn
             .setup()
             .roots
@@ -29,6 +37,11 @@ impl Connection {
             screen_num,
             screen,
         })
+    }
+
+    /// Get maximum request size in bytes (after BIG-REQUESTS negotiation)
+    pub fn maximum_request_bytes(&self) -> usize {
+        self.conn.maximum_request_bytes()
     }
 
     /// Get the underlying X11 connection
