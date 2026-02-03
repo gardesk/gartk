@@ -53,6 +53,17 @@ pub struct Atoms {
     pub string: Atom,
     pub atom: Atom,
     pub window: Atom,
+
+    // XDND (Drag and Drop)
+    pub xdnd_aware: Atom,
+    pub xdnd_enter: Atom,
+    pub xdnd_position: Atom,
+    pub xdnd_status: Atom,
+    pub xdnd_leave: Atom,
+    pub xdnd_drop: Atom,
+    pub xdnd_finished: Atom,
+    pub xdnd_selection: Atom,
+    pub xdnd_action_copy: Atom,
 }
 
 impl Atoms {
@@ -108,6 +119,17 @@ impl Atoms {
             string: conn.intern_atom("STRING", false)?,
             atom: conn.intern_atom("ATOM", false)?,
             window: conn.intern_atom("WINDOW", false)?,
+
+            // XDND (Drag and Drop)
+            xdnd_aware: conn.intern_atom("XdndAware", false)?,
+            xdnd_enter: conn.intern_atom("XdndEnter", false)?,
+            xdnd_position: conn.intern_atom("XdndPosition", false)?,
+            xdnd_status: conn.intern_atom("XdndStatus", false)?,
+            xdnd_leave: conn.intern_atom("XdndLeave", false)?,
+            xdnd_drop: conn.intern_atom("XdndDrop", false)?,
+            xdnd_finished: conn.intern_atom("XdndFinished", false)?,
+            xdnd_selection: conn.intern_atom("XdndSelection", false)?,
+            xdnd_action_copy: conn.intern_atom("XdndActionCopy", false)?,
         })
     }
 }

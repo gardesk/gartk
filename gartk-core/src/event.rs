@@ -1,5 +1,6 @@
 use crate::rect::Point;
 use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
 
 /// Keyboard modifier state
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
@@ -183,6 +184,8 @@ pub enum InputEvent {
     SelectionClear,
     /// Idle tick - sent every frame when no other events
     Idle,
+    /// Files dropped on window (XDND)
+    FileDrop(Vec<PathBuf>),
 }
 
 impl InputEvent {
