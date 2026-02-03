@@ -238,6 +238,7 @@ impl DoubleBufferedSurface {
 }
 
 /// Copy a surface to an X11 window using PutImage
+/// Automatically chunks large images to stay within X11 request size limits
 pub fn copy_surface_to_window(
     surface: &mut Surface,
     window: &Window,
@@ -252,22 +253,61 @@ pub fn copy_surface_to_window(
     let conn = window.connection();
     let data = surface.data()?;
 
-    // X11 PutImage expects the data in a specific format
-    // Cairo uses native endian ARGB, X11 expects the same for depth 32
-    conn.inner()
-        .put_image(
-            ImageFormat::Z_PIXMAP,
-            window.id(),
-            gc,
-            surface.width() as u16,
-            surface.height() as u16,
-            x as i16,
-            y as i16,
-            0,
-            window.depth(),
-            &data,
-        )
-        .map_err(|e| RenderError::X11(gartk_x11::X11Error::Connection(e)))?;
+    let width = surface.width() as usize;
+    let height = surface.height() as usize;
+    let depth = window.depth();
+    let bytes_per_pixel = 4; // ARGB32
+    let row_bytes = width * bytes_per_pixel;
+
+    // Get max request size and leave room for protocol overhead (~100 bytes)
+    let max_request = conn.maximum_request_bytes().saturating_sub(100);
+
+    // Calculate how many rows we can send per request
+    let rows_per_chunk = (max_request / row_bytes).max(1);
+
+    if rows_per_chunk >= height {
+        // Image fits in single request
+        conn.inner()
+            .put_image(
+                ImageFormat::Z_PIXMAP,
+                window.id(),
+                gc,
+                width as u16,
+                height as u16,
+                x as i16,
+                y as i16,
+                0,
+                depth,
+                &data,
+            )
+            .map_err(|e| RenderError::X11(gartk_x11::X11Error::Connection(e)))?;
+    } else {
+        // Chunk the image into horizontal strips
+        let mut current_y = 0usize;
+        while current_y < height {
+            let chunk_height = rows_per_chunk.min(height - current_y);
+            let start_offset = current_y * row_bytes;
+            let end_offset = start_offset + (chunk_height * row_bytes);
+            let chunk_data = &data[start_offset..end_offset];
+
+            conn.inner()
+                .put_image(
+                    ImageFormat::Z_PIXMAP,
+                    window.id(),
+                    gc,
+                    width as u16,
+                    chunk_height as u16,
+                    x as i16,
+                    (y + current_y as i32) as i16,
+                    0,
+                    depth,
+                    chunk_data,
+                )
+                .map_err(|e| RenderError::X11(gartk_x11::X11Error::Connection(e)))?;
+
+            current_y += chunk_height;
+        }
+    }
 
     conn.flush()?;
     Ok(())
