@@ -151,6 +151,21 @@ pub struct SelectionRequestEvent {
     pub time: u32,
 }
 
+/// Selection notify event (X11 clipboard)
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SelectionNotifyEvent {
+    /// Window receiving the selection data
+    pub requestor: u32,
+    /// Selection atom (CLIPBOARD, PRIMARY)
+    pub selection: u32,
+    /// Target format that was requested
+    pub target: u32,
+    /// Property containing the result, or 0 on failure
+    pub property: u32,
+    /// Timestamp of the notify event
+    pub time: u32,
+}
+
 /// All input event types
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum InputEvent {
@@ -180,6 +195,8 @@ pub enum InputEvent {
     CloseRequested,
     /// Selection request from another application (X11 clipboard)
     SelectionRequest(SelectionRequestEvent),
+    /// Selection notify event for clipboard data retrieval
+    SelectionNotify(SelectionNotifyEvent),
     /// We lost clipboard ownership
     SelectionClear,
     /// Idle tick - sent every frame when no other events

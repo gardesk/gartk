@@ -3,10 +3,15 @@ use crate::connection::Connection;
 use crate::error::Result;
 use crate::keyboard::{key_event_from_x11, modifiers_from_x11};
 use crate::window::Window;
-use gartk_core::{InputEvent, MouseButton, MouseEvent, Point, ScrollEvent, SelectionRequestEvent};
+use gartk_core::{
+    InputEvent, MouseButton, MouseEvent, Point, ScrollEvent, SelectionNotifyEvent,
+    SelectionRequestEvent,
+};
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
-use x11rb::protocol::xproto::{self, AtomEnum, ButtonPressEvent, ConnectionExt as XprotoExt, PropMode};
+use x11rb::protocol::xproto::{
+    self, AtomEnum, ButtonPressEvent, ConnectionExt as XprotoExt, PropMode,
+};
 use x11rb::protocol::Event;
 use x11rb::wrapper::ConnectionExt;
 
@@ -239,12 +244,9 @@ impl EventLoop {
                 }))
             }
 
-            Event::EnterNotify(e) if e.event == self.window_id => {
-                Some(InputEvent::MouseEnter(Point::new(
-                    e.event_x as i32,
-                    e.event_y as i32,
-                )))
-            }
+            Event::EnterNotify(e) if e.event == self.window_id => Some(InputEvent::MouseEnter(
+                Point::new(e.event_x as i32, e.event_y as i32),
+            )),
 
             Event::LeaveNotify(e) if e.event == self.window_id => Some(InputEvent::MouseLeave),
 
@@ -285,8 +287,15 @@ impl EventLoop {
                     if let Some(event) = self.handle_xdnd_selection_notify(&e) {
                         return Some(event);
                     }
+                    return None;
                 }
-                None
+                Some(InputEvent::SelectionNotify(SelectionNotifyEvent {
+                    requestor: e.requestor,
+                    selection: e.selection,
+                    target: e.target,
+                    property: e.property,
+                    time: e.time,
+                }))
             }
 
             // Selection events for clipboard support
@@ -309,10 +318,7 @@ impl EventLoop {
     }
 
     /// Handle XDND client messages
-    fn handle_xdnd_client_message(
-        &mut self,
-        e: &xproto::ClientMessageEvent,
-    ) -> Option<InputEvent> {
+    fn handle_xdnd_client_message(&mut self, e: &xproto::ClientMessageEvent) -> Option<InputEvent> {
         let data = e.data.as_data32();
 
         if e.type_ == self.atoms.xdnd_enter {
