@@ -184,19 +184,24 @@ impl ClipboardManager {
             let data = if content.is_cut { "1" } else { "0" };
             tracing::debug!("Sending KDE cut selection: {}", data);
             self.send_data(event, property, self.atoms.kde_cut_selection, data.as_bytes())?;
-        } else if target == self.atoms.utf8_string || target == self.atoms.text_plain_utf8 {
+        } else if target == self.atoms.utf8_string {
             // For UTF8_STRING, send full URIs so file managers can recognize them
             let data = self.format_uri_list_plain(content);
             tracing::debug!("Sending UTF8_STRING: {}", data);
             self.send_data(event, property, self.atoms.utf8_string, data.as_bytes())?;
+        } else if target == self.atoms.text_plain_utf8 {
+            // Explicit UTF-8 plain text target: send decoded file paths.
+            let data = self.format_plain_text(content);
+            tracing::debug!("Sending text/plain;charset=utf-8: {}", data);
+            self.send_data(event, property, self.atoms.text_plain_utf8, data.as_bytes())?;
         } else if target == self.atoms.text || target == self.atoms.text_plain {
-            // For plain text, send full URIs
-            let data = self.format_uri_list_plain(content);
+            // Generic plain text targets: send decoded file paths.
+            let data = self.format_plain_text(content);
             tracing::debug!("Sending TEXT: {}", data);
             self.send_data(event, property, self.atoms.text, data.as_bytes())?;
         } else if target == self.atoms.string {
             // STRING format (Latin-1, but we send UTF-8 which is compatible for ASCII)
-            let data = self.format_uri_list_plain(content);
+            let data = self.format_plain_text(content);
             tracing::debug!("Sending STRING: {}", data);
             self.send_data(event, property, self.atoms.string, data.as_bytes())?;
         } else {
