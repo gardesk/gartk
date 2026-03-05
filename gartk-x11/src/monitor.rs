@@ -2,6 +2,7 @@ use crate::connection::Connection;
 use crate::error::{Result, X11Error};
 use gartk_core::Rect;
 use x11rb::protocol::randr::{self, ConnectionExt as RandrExt};
+use x11rb::protocol::xproto::{self, ConnectionExt as XprotoExt};
 
 /// Information about a monitor
 #[derive(Debug, Clone)]
@@ -183,4 +184,47 @@ pub fn monitor_at_point(conn: &Connection, x: i32, y: i32) -> Result<Monitor> {
 pub fn monitor_at_pointer(conn: &Connection) -> Result<Monitor> {
     let (x, y) = conn.query_pointer()?;
     monitor_at_point(conn, x as i32, y as i32)
+}
+
+/// Get the monitor containing the active (focused) window.
+/// Reads _NET_ACTIVE_WINDOW from the root window, gets the window's geometry,
+/// and finds which monitor contains its center point.
+/// Falls back to monitor_at_pointer if no active window is found.
+pub fn monitor_of_active_window(conn: &Connection) -> Result<Monitor> {
+    if let Ok(atom) = conn.intern_atom("_NET_ACTIVE_WINDOW", true) {
+        if let Ok(reply) = conn
+            .inner()
+            .get_property(
+                false,
+                conn.root(),
+                atom,
+                xproto::AtomEnum::WINDOW,
+                0,
+                1,
+            )?
+            .reply()
+        {
+            if let Some(window_id) = reply.value32().and_then(|mut iter| iter.next()) {
+                if window_id != 0 && window_id != conn.root() {
+                    // Translate window origin to root coordinates and get size
+                    if let Ok(translated) = conn
+                        .inner()
+                        .translate_coordinates(window_id, conn.root(), 0, 0)?
+                        .reply()
+                    {
+                        if let Ok(geom) = conn.inner().get_geometry(window_id)?.reply() {
+                            let center_x =
+                                translated.dst_x as i32 + geom.width as i32 / 2;
+                            let center_y =
+                                translated.dst_y as i32 + geom.height as i32 / 2;
+                            return monitor_at_point(conn, center_x, center_y);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Fallback: use pointer position
+    monitor_at_pointer(conn)
 }
