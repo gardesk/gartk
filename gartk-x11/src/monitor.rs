@@ -189,7 +189,9 @@ pub fn monitor_at_pointer(conn: &Connection) -> Result<Monitor> {
 /// Get the monitor containing the active (focused) window.
 /// Reads _NET_ACTIVE_WINDOW from the root window, gets the window's geometry,
 /// and finds which monitor contains its center point.
-/// Falls back to monitor_at_pointer if no active window is found.
+/// Cross-checks against _NET_CURRENT_DESKTOP to detect stale active windows
+/// (e.g. when focus moved to an empty workspace on another monitor).
+/// Falls back to monitor_at_pointer if no active window or mismatch detected.
 pub fn monitor_of_active_window(conn: &Connection) -> Result<Monitor> {
     if let Ok(atom) = conn.intern_atom("_NET_ACTIVE_WINDOW", true) {
         if let Ok(reply) = conn
@@ -206,6 +208,19 @@ pub fn monitor_of_active_window(conn: &Connection) -> Result<Monitor> {
         {
             if let Some(window_id) = reply.value32().and_then(|mut iter| iter.next()) {
                 if window_id != 0 && window_id != conn.root() {
+                    // Verify the window is on the current desktop.
+                    // When focus moves to an empty workspace, _NET_ACTIVE_WINDOW
+                    // may still point to a window on the previous workspace.
+                    if let (Some(current_desktop), Some(window_desktop)) =
+                        (get_cardinal_prop(conn, conn.root(), "_NET_CURRENT_DESKTOP"),
+                         get_cardinal_prop(conn, window_id, "_NET_WM_DESKTOP"))
+                    {
+                        // 0xFFFFFFFF means "on all desktops" — always valid
+                        if window_desktop != 0xFFFFFFFF && window_desktop != current_desktop {
+                            return monitor_at_pointer(conn);
+                        }
+                    }
+
                     // Translate window origin to root coordinates and get size
                     if let Ok(translated) = conn
                         .inner()
@@ -227,4 +242,16 @@ pub fn monitor_of_active_window(conn: &Connection) -> Result<Monitor> {
 
     // Fallback: use pointer position
     monitor_at_pointer(conn)
+}
+
+/// Read a single CARDINAL (u32) property from a window.
+fn get_cardinal_prop(conn: &Connection, window: u32, name: &str) -> Option<u32> {
+    let atom = conn.intern_atom(name, true).ok()?;
+    let reply = conn
+        .inner()
+        .get_property(false, window, atom, xproto::AtomEnum::CARDINAL, 0, 1)
+        .ok()?
+        .reply()
+        .ok()?;
+    reply.value32().and_then(|mut iter| iter.next())
 }
